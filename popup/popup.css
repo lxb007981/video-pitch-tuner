@@ -33,13 +33,6 @@ body {
   margin-bottom: 14px;
 }
 
-.eyebrow {
-  margin: 0 0 6px;
-  color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0.2em;
-}
-
 .hero h1 {
   margin: 0;
   font-size: 24px;
@@ -63,7 +56,6 @@ body {
 }
 
 .status-row,
-.control-copy,
 .actions {
   display: flex;
   align-items: center;
@@ -110,17 +102,6 @@ body {
 .control-group {
   display: block;
   margin-top: 18px;
-}
-
-.control-copy {
-  margin-bottom: 10px;
-  font-size: 15px;
-}
-
-#pitch-value {
-  font-variant-numeric: tabular-nums;
-  color: var(--accent);
-  font-weight: 700;
 }
 
 .pitch-stepper {

@@ -1,6 +1,5 @@
 const statusPill = document.getElementById("status-pill");
 const statusMessage = document.getElementById("status-message");
-const pitchValue = document.getElementById("pitch-value");
 const pitchDisplayValue = document.getElementById("pitch-display-value");
 const decreaseButton = document.getElementById("decrease-button");
 const increaseButton = document.getElementById("increase-button");
@@ -68,7 +67,7 @@ async function sendToActiveTab(message) {
 
 function formatSemitones(value) {
   const number = Number(value) || 0;
-  return `${number} st`;
+  return String(number);
 }
 
 function clampSemitones(value) {
@@ -93,8 +92,7 @@ function applyState(response) {
   decreaseButton.disabled = !meta.interactive || semitones <= MIN_SEMITONES;
   increaseButton.disabled = !meta.interactive || semitones >= MAX_SEMITONES;
   resetButton.disabled = !meta.interactive;
-  pitchValue.textContent = formatSemitones(semitones);
-  pitchDisplayValue.textContent = String(semitones);
+  pitchDisplayValue.textContent = formatSemitones(semitones);
 }
 
 let writeLock = false;
