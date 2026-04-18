@@ -102,15 +102,26 @@ class VideoPitchController {
 
   findPreferredVideo(videos = Array.from(this.knownVideos)) {
     return (
-      videos.find((video) => !video.paused && !video.ended && video.readyState > 0) ||
+      this.findPlayingVideo(videos) ||
       videos.find((video) => video.readyState > 0) ||
       videos[0] ||
       null
     );
   }
 
+  findPlayingVideo(videos = Array.from(this.knownVideos)) {
+    return videos.find((video) => !video.paused && !video.ended && video.readyState > 0) || null;
+  }
+
   onVideoPlaying(event) {
     const video = event.currentTarget;
+
+    if (video === this.activeVideo && this.workletNode) {
+      this.resumeAudioContext().catch(() => {});
+      this.syncVideoProperties(video);
+      return;
+    }
+
     this.setActiveVideo(video);
   }
 
@@ -121,7 +132,7 @@ class VideoPitchController {
       return;
     }
 
-    const replacement = this.findPreferredVideo(
+    const replacement = this.findPlayingVideo(
       Array.from(this.knownVideos).filter((candidate) => candidate !== video)
     );
 
@@ -130,8 +141,16 @@ class VideoPitchController {
       return;
     }
 
-    this.releaseCurrentGraph();
-    this.activeVideo = video.isConnected ? video : null;
+    if (!video.isConnected) {
+      this.releaseCurrentGraph();
+      this.activeVideo = null;
+      return;
+    }
+
+    // Keep the current graph attached for the same target video so click-to-resume
+    // continues to work after the user pauses playback.
+    this.activeVideo = video;
+    this.syncVideoProperties(video);
   }
 
   setActiveVideo(video) {
