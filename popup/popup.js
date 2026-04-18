@@ -1,8 +1,12 @@
 const statusPill = document.getElementById("status-pill");
 const statusMessage = document.getElementById("status-message");
-const pitchSlider = document.getElementById("pitch-slider");
 const pitchValue = document.getElementById("pitch-value");
+const pitchDisplayValue = document.getElementById("pitch-display-value");
+const decreaseButton = document.getElementById("decrease-button");
+const increaseButton = document.getElementById("increase-button");
 const resetButton = document.getElementById("reset-button");
+const MIN_SEMITONES = -12;
+const MAX_SEMITONES = 12;
 
 const STATUS_META = {
   checking: {
@@ -64,28 +68,39 @@ async function sendToActiveTab(message) {
 
 function formatSemitones(value) {
   const number = Number(value) || 0;
-  return `${number.toFixed(1)} st`;
+  return `${number} st`;
+}
+
+function clampSemitones(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+
+  return Math.max(MIN_SEMITONES, Math.min(MAX_SEMITONES, Math.round(number)));
 }
 
 function applyState(response) {
   const state = STATUS_META[response.status] ? response.status : "unsupported";
   const meta = STATUS_META[state];
-  const semitones = Number(response.semitones) || 0;
+  const semitones = clampSemitones(response.semitones);
   const message = response.reason || meta.message;
 
   statusPill.textContent = meta.label;
   statusPill.dataset.state = state;
   statusMessage.textContent = message;
-  pitchSlider.disabled = !meta.interactive;
+  decreaseButton.disabled = !meta.interactive || semitones <= MIN_SEMITONES;
+  increaseButton.disabled = !meta.interactive || semitones >= MAX_SEMITONES;
   resetButton.disabled = !meta.interactive;
-  pitchSlider.value = String(semitones);
   pitchValue.textContent = formatSemitones(semitones);
+  pitchDisplayValue.textContent = String(semitones);
 }
 
 let writeLock = false;
 
 async function refreshStatus() {
-  applyState({ status: "checking", semitones: Number(pitchSlider.value) || 0 });
+  applyState({ status: "checking", semitones: 0 });
   const response = await sendToActiveTab({ type: "GET_STATUS" });
   applyState(response);
 }
@@ -106,12 +121,23 @@ async function commitPitch(semitones) {
   writeLock = false;
 }
 
-pitchSlider.addEventListener("input", () => {
-  pitchValue.textContent = formatSemitones(pitchSlider.value);
+async function stepPitch(delta) {
+  const currentSemitones = clampSemitones(pitchDisplayValue.textContent);
+  const nextSemitones = clampSemitones(currentSemitones + delta);
+
+  if (nextSemitones === currentSemitones) {
+    return;
+  }
+
+  await commitPitch(nextSemitones);
+}
+
+decreaseButton.addEventListener("click", async () => {
+  await stepPitch(-1);
 });
 
-pitchSlider.addEventListener("change", async () => {
-  await commitPitch(Number(pitchSlider.value));
+increaseButton.addEventListener("click", async () => {
+  await stepPitch(1);
 });
 
 resetButton.addEventListener("click", async () => {

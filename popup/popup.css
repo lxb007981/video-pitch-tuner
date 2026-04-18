@@ -63,7 +63,7 @@ body {
 }
 
 .status-row,
-.slider-copy,
+.control-copy,
 .actions {
   display: flex;
   align-items: center;
@@ -107,12 +107,12 @@ body {
   background: #f4d9d9;
 }
 
-.slider-group {
+.control-group {
   display: block;
   margin-top: 18px;
 }
 
-.slider-copy {
+.control-copy {
   margin-bottom: 10px;
   font-size: 15px;
 }
@@ -123,9 +123,45 @@ body {
   font-weight: 700;
 }
 
-#pitch-slider {
-  width: 100%;
-  accent-color: var(--accent);
+.pitch-stepper {
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  gap: 10px;
+}
+
+.pitch-stepper button {
+  padding: 0;
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.pitch-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: rgba(255, 248, 242, 0.85);
+}
+
+.pitch-display-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.pitch-display-unit {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .range-labels {
@@ -164,7 +200,7 @@ button:hover:enabled {
 }
 
 button:disabled,
-input:disabled {
+output:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }

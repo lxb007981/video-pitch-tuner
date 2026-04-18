@@ -20,25 +20,27 @@
           <span id="status-pill" class="status-pill">Checking</span>
         </div>
 
-        <label class="slider-group" for="pitch-slider">
-          <div class="slider-copy">
+        <section class="control-group" aria-label="Pitch controls">
+          <div class="control-copy">
             <span>Pitch</span>
-            <output id="pitch-value" for="pitch-slider">0.0 st</output>
+            <output id="pitch-value">0 st</output>
           </div>
-          <input
-            id="pitch-slider"
-            type="range"
-            min="-12"
-            max="12"
-            step="0.5"
-            value="0"
-          >
+
+          <div class="pitch-stepper">
+            <button id="decrease-button" type="button" aria-label="Decrease pitch by one semitone">-</button>
+            <div class="pitch-display">
+              <span class="pitch-display-value" id="pitch-display-value">0</span>
+              <span class="pitch-display-unit">semitones</span>
+            </div>
+            <button id="increase-button" type="button" aria-label="Increase pitch by one semitone">+</button>
+          </div>
+
           <div class="range-labels">
             <span>-12</span>
-            <span>0</span>
+            <span>1 st steps</span>
             <span>+12</span>
           </div>
-        </label>
+        </section>
 
         <p id="status-message" class="status-message">
           Open a tab with a playing HTML5 video to begin.

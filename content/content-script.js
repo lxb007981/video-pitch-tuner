@@ -309,7 +309,7 @@ function clampSemitones(value) {
     return 0;
   }
 
-  return Math.max(-12, Math.min(12, Math.round(numeric * 2) / 2));
+  return Math.max(-12, Math.min(12, Math.round(numeric)));
 }
 
 const controller = new VideoPitchController();
