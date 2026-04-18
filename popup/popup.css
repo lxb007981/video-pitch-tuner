@@ -176,6 +176,15 @@ button {
   transition: transform 140ms ease, opacity 140ms ease;
 }
 
+#reset-button {
+  width: 100%;
+  padding: 12px 16px;
+  border: 0;
+  background: var(--accent);
+  color: #fff8f2;
+  font-weight: 700;
+}
+
 button:hover:enabled {
   transform: translateY(-1px);
 }
