@@ -92,8 +92,10 @@ class PitchShiftProcessor extends AudioWorkletProcessor {
   }
 
   computeDelay(phase) {
-    const slopeMagnitude = Math.abs(1 - this.ratio);
-    const sweep = slopeMagnitude * this.windowSize;
+    // The delay head must sweep across the full window while the phase itself
+    // advances at |1 - ratio| / windowSize. Scaling both terms by |1 - ratio|
+    // squares the transposition amount and produces the wrong pitch.
+    const sweep = this.windowSize;
 
     if (this.ratio > 1) {
       return this.minDelay + (1 - phase) * sweep;
