@@ -4,6 +4,8 @@ A Microsoft Edge extension that changes the pitch of the active page video witho
 
 The extension ships as plain Manifest V3 files, so you can load it directly in Edge with no build step.
 
+![preview.png](preview.png)
+
 ## Load in Edge
 
 1. Open `edge://extensions`.
