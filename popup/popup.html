@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Video Pitch Tuner</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup">
+      <header class="hero">
+        <p class="eyebrow">EDGE EXTENSION</p>
+        <h1>Video Pitch Tuner</h1>
+        <p class="subtitle">Tune the current tab’s playing video in semitones.</p>
+      </header>
+
+      <section class="panel">
+        <div class="status-row">
+          <span class="status-label">Status</span>
+          <span id="status-pill" class="status-pill">Checking</span>
+        </div>
+
+        <label class="slider-group" for="pitch-slider">
+          <div class="slider-copy">
+            <span>Pitch</span>
+            <output id="pitch-value" for="pitch-slider">0.0 st</output>
+          </div>
+          <input
+            id="pitch-slider"
+            type="range"
+            min="-12"
+            max="12"
+            step="0.5"
+            value="0"
+          >
+          <div class="range-labels">
+            <span>-12</span>
+            <span>0</span>
+            <span>+12</span>
+          </div>
+        </label>
+
+        <p id="status-message" class="status-message">
+          Open a tab with a playing HTML5 video to begin.
+        </p>
+
+        <div class="actions">
+          <button id="reset-button" type="button">Reset</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

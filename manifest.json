@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Video Pitch Tuner",
+  "version": "0.1.0",
+  "description": "Adjust the pitch of the current page video without changing playback speed.",
+  "permissions": [
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "Video Pitch Tuner",
+    "default_popup": "popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/content-script.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "audio/pitch-shift-worklet.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}
