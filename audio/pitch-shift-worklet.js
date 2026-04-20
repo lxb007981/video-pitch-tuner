@@ -1,6 +1,9 @@
 const WINDOW_SECONDS = 0.1;
 const MIN_DELAY_SECONDS = 0.05;
 const BUFFER_SECONDS = 0.8;
+const SHIFT_GAIN_DB = 3;
+const SHIFT_GAIN = Math.pow(10, SHIFT_GAIN_DB / 20);
+const RATIO_EPSILON = 0.0001;
 
 class PitchShiftProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -63,12 +66,14 @@ class PitchShiftProcessor extends AudioWorkletProcessor {
         ring[this.writeIndex] = inputSample;
 
         let sample = inputSample;
+        let gain = 1;
 
-        if (Math.abs(this.ratio - 1) > 0.0001) {
+        if (Math.abs(this.ratio - 1) > RATIO_EPSILON) {
           sample = this.readShiftedSample(ring, this.phase, this.phaseOffset);
+          gain = SHIFT_GAIN;
         }
 
-        outChannel[i] = this.muted ? 0 : sample * this.volume;
+        outChannel[i] = this.muted ? 0 : sample * this.volume * gain;
       }
 
       this.advancePhase();
