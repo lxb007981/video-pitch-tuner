@@ -16,6 +16,8 @@ class VideoPitchController {
     this.semitones = 0;
     this.supportError = "";
     this.scanQueued = false;
+    this.graphRefreshQueued = false;
+    this.graphRefreshPromise = null;
     this.workletLoaded = false;
 
     this.boundOnPlay = (event) => this.onVideoPlaying(event);
@@ -26,7 +28,13 @@ class VideoPitchController {
         this.syncVideoProperties(this.activeVideo);
       }
     };
-    this.boundOnVisibilityChange = () => this.queueScan();
+    this.boundOnVisibilityChange = () => {
+      this.queueScan();
+
+      if (!document.hidden) {
+        this.queueGraphRefresh();
+      }
+    };
 
     this.observeDom();
     this.scanForVideos();
@@ -53,7 +61,7 @@ class VideoPitchController {
     });
   }
 
-  scanForVideos() {
+  scanForVideos({ refreshGraph = true } = {}) {
     const videos = Array.from(document.querySelectorAll("video"));
     const nextSet = new Set(videos);
 
@@ -76,11 +84,24 @@ class VideoPitchController {
       this.releaseCurrentGraph();
     }
 
-    if (!this.activeVideo) {
+    const playingCandidate = this.findPlayingVideo(videos);
+
+    if (playingCandidate && playingCandidate !== this.activeVideo) {
+      this.setActiveVideo(playingCandidate, { refreshGraph });
+    } else if (!this.activeVideo) {
       const candidate = this.findPreferredVideo(videos);
       if (candidate) {
-        this.setActiveVideo(candidate);
+        this.setActiveVideo(candidate, { refreshGraph });
       }
+    }
+
+    if (
+      refreshGraph &&
+      this.activeVideo &&
+      this.semitones !== 0 &&
+      (!this.workletNode || this.currentVideo !== this.activeVideo)
+    ) {
+      this.queueGraphRefresh();
     }
   }
 
@@ -116,9 +137,14 @@ class VideoPitchController {
   onVideoPlaying(event) {
     const video = event.currentTarget;
 
-    if (video === this.activeVideo && this.workletNode) {
-      this.resumeAudioContext().catch(() => {});
-      this.syncVideoProperties(video);
+    if (video === this.activeVideo) {
+      if (this.workletNode && this.currentVideo === video) {
+        this.resumeAudioContext().catch(() => {});
+        this.syncVideoProperties(video);
+        return;
+      }
+
+      this.queueGraphRefresh();
       return;
     }
 
@@ -153,8 +179,15 @@ class VideoPitchController {
     this.syncVideoProperties(video);
   }
 
-  setActiveVideo(video) {
-    if (!video || video === this.activeVideo) {
+  setActiveVideo(video, { refreshGraph = true } = {}) {
+    if (!video) {
+      return;
+    }
+
+    if (video === this.activeVideo) {
+      if (refreshGraph) {
+        this.queueGraphRefresh();
+      }
       return;
     }
 
@@ -164,6 +197,46 @@ class VideoPitchController {
     if (this.currentVideo && this.currentVideo !== video) {
       this.releaseCurrentGraph();
     }
+
+    if (refreshGraph) {
+      this.queueGraphRefresh();
+    }
+  }
+
+  queueGraphRefresh() {
+    if (this.graphRefreshQueued || this.semitones === 0 || !this.activeVideo) {
+      return;
+    }
+
+    this.graphRefreshQueued = true;
+    queueMicrotask(() => {
+      this.graphRefreshQueued = false;
+      void this.reapplyPitchToActiveVideo();
+    });
+  }
+
+  async reapplyPitchToActiveVideo() {
+    if (this.graphRefreshPromise) {
+      return this.graphRefreshPromise;
+    }
+
+    if (this.semitones === 0 || !this.activeVideo) {
+      return undefined;
+    }
+
+    this.graphRefreshPromise = this.ensureAudioGraph()
+      .then(() => {
+        this.supportError = "";
+      })
+      .catch((error) => {
+        this.supportError = error instanceof Error ? error.message : String(error);
+        this.releaseCurrentGraph();
+      })
+      .finally(() => {
+        this.graphRefreshPromise = null;
+      });
+
+    return this.graphRefreshPromise;
   }
 
   async ensureAudioGraph() {
@@ -297,7 +370,7 @@ class VideoPitchController {
   }
 
   async applyPitch(semitones) {
-    this.scanForVideos();
+    this.scanForVideos({ refreshGraph: false });
     this.setPitchValue(semitones);
 
     if (!this.activeVideo) {
