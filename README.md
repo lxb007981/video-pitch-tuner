@@ -33,3 +33,13 @@ The extension ships as plain Manifest V3 files, so you can load it directly in E
 - This version targets standard top-document HTML5 `video` elements.
 - State is per tab session and resets when the tab reloads or closes.
 - Some sites with custom protected players, unusual audio pipelines, or cross-origin iframe players may show as unsupported.
+
+## Debug audio graph issues
+
+The content script exposes an opt-in diagnostic helper in the page DevTools console.
+
+1. Open DevTools on the video page and select the extension/content-script execution context.
+2. Run `__videoPitchTunerDebug.enable()`.
+3. Apply a pitch change and run `__videoPitchTunerDebug.snapshot()`.
+
+In a healthy graph, `connectedWorkletIds` should contain one id and `currentVideoMatchesActive` should be `true`. Use `__videoPitchTunerDebug.events()` to inspect recent graph build/release events, or `await __videoPitchTunerDebug.rebuild()` to force a clean graph rebuild for the active video.

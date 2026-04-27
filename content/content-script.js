@@ -18,7 +18,15 @@ class VideoPitchController {
     this.scanQueued = false;
     this.graphRefreshQueued = false;
     this.graphRefreshPromise = null;
+    this.graphRefreshRequestedAgain = false;
+    this.graphRefreshForceRequested = false;
     this.workletLoaded = false;
+    this.instanceId = createDebugId();
+    this.nextGraphBuildId = 0;
+    this.nextWorkletId = 0;
+    this.connectedWorkletIds = new Set();
+    this.debugEnabled = readDebugFlag();
+    this.debugEvents = [];
 
     this.boundOnPlay = (event) => this.onVideoPlaying(event);
     this.boundOnPause = (event) => this.onVideoPaused(event);
@@ -216,31 +224,70 @@ class VideoPitchController {
   }
 
   async reapplyPitchToActiveVideo() {
-    if (this.graphRefreshPromise) {
-      return this.graphRefreshPromise;
-    }
-
     if (this.semitones === 0 || !this.activeVideo) {
       return undefined;
     }
 
-    this.graphRefreshPromise = this.ensureAudioGraph()
-      .then(() => {
-        this.supportError = "";
-      })
-      .catch((error) => {
-        this.supportError = error instanceof Error ? error.message : String(error);
-        this.releaseCurrentGraph();
-      })
+    try {
+      await this.ensureAudioGraph();
+      this.supportError = "";
+    } catch (error) {
+      this.supportError = error instanceof Error ? error.message : String(error);
+      this.releaseCurrentGraph();
+    }
+
+    return undefined;
+  }
+
+  async ensureAudioGraph({ force = false } = {}) {
+    if (force) {
+      this.graphRefreshForceRequested = true;
+    }
+
+    if (this.graphRefreshPromise) {
+      this.graphRefreshRequestedAgain = true;
+      this.debugLog("graph-refresh-joined", { force });
+      return this.graphRefreshPromise;
+    }
+
+    this.graphRefreshPromise = this.runGraphRefreshLoop()
       .finally(() => {
         this.graphRefreshPromise = null;
+        this.graphRefreshRequestedAgain = false;
+        this.graphRefreshForceRequested = false;
       });
 
     return this.graphRefreshPromise;
   }
 
-  async ensureAudioGraph() {
-    if (this.workletNode && this.currentVideo === this.activeVideo) {
+  async runGraphRefreshLoop() {
+    let attempts = 0;
+
+    do {
+      const force = this.graphRefreshForceRequested;
+      this.graphRefreshRequestedAgain = false;
+      this.graphRefreshForceRequested = false;
+      attempts += 1;
+
+      await this.buildAudioGraph({ force });
+    } while (this.shouldRepeatGraphRefresh() && attempts < 4);
+
+    if (this.shouldRepeatGraphRefresh()) {
+      this.debugLog("graph-refresh-rescheduled", { attempts });
+      this.queueGraphRefresh();
+    }
+  }
+
+  shouldRepeatGraphRefresh() {
+    return (
+      this.graphRefreshRequestedAgain ||
+      this.graphRefreshForceRequested ||
+      (this.semitones !== 0 && this.activeVideo && this.currentVideo !== this.activeVideo)
+    );
+  }
+
+  async buildAudioGraph({ force = false } = {}) {
+    if (!force && this.workletNode && this.currentVideo === this.activeVideo) {
       await this.resumeAudioContext();
       this.syncVideoProperties(this.activeVideo);
       return;
@@ -253,6 +300,13 @@ class VideoPitchController {
     if (!this.activeVideo) {
       throw new Error("No active video found.");
     }
+
+    const graphBuildId = ++this.nextGraphBuildId;
+    this.debugLog("graph-build-start", {
+      graphBuildId,
+      force,
+      activeVideo: describeVideo(this.activeVideo)
+    });
 
     this.releaseCurrentGraph();
 
@@ -273,6 +327,10 @@ class VideoPitchController {
       this.workletLoaded = true;
     }
 
+    if (!this.activeVideo) {
+      throw new Error("No active video found.");
+    }
+
     let mediaSourceNode = this.sourceNodes.get(this.activeVideo);
 
     if (!mediaSourceNode) {
@@ -286,13 +344,22 @@ class VideoPitchController {
       numberOfOutputs: 1,
       outputChannelCount: [2]
     });
+    this.workletNode.__videoPitchTunerId = ++this.nextWorkletId;
     this.workletNode.connect(this.audioContext.destination);
     this.mediaSourceNode.connect(this.workletNode);
+    this.connectedWorkletIds.add(this.workletNode.__videoPitchTunerId);
     this.currentVideo = this.activeVideo;
 
     this.syncVideoProperties(this.activeVideo);
     this.setPitchValue(this.semitones);
     await this.resumeAudioContext();
+
+    this.debugLog("graph-build-connected", {
+      graphBuildId,
+      workletId: this.workletNode.__videoPitchTunerId,
+      connectedWorkletIds: Array.from(this.connectedWorkletIds),
+      activeVideo: describeVideo(this.activeVideo)
+    });
   }
 
   async resumeAudioContext() {
@@ -325,6 +392,14 @@ class VideoPitchController {
   }
 
   releaseCurrentGraph() {
+    if (this.mediaSourceNode || this.workletNode || this.connectedWorkletIds.size > 0) {
+      this.debugLog("graph-release", {
+        workletId: this.workletNode?.__videoPitchTunerId ?? null,
+        connectedWorkletIds: Array.from(this.connectedWorkletIds),
+        currentVideo: describeVideo(this.currentVideo)
+      });
+    }
+
     if (this.mediaSourceNode) {
       try {
         this.mediaSourceNode.disconnect();
@@ -344,6 +419,57 @@ class VideoPitchController {
     this.mediaSourceNode = null;
     this.workletNode = null;
     this.currentVideo = null;
+    this.connectedWorkletIds.clear();
+  }
+
+  debugLog(event, details = {}) {
+    if (!this.debugEnabled) {
+      return;
+    }
+
+    const entry = {
+      sequence: this.debugEvents.length + 1,
+      time: new Date().toISOString(),
+      instanceId: this.instanceId,
+      event,
+      ...details
+    };
+
+    this.debugEvents.push(entry);
+
+    if (this.debugEvents.length > 100) {
+      this.debugEvents.shift();
+    }
+
+    console.debug("[VideoPitchTuner]", event, details);
+  }
+
+  debugSnapshot() {
+    return {
+      instanceId: this.instanceId,
+      semitones: this.semitones,
+      supportError: this.supportError,
+      audioContextState: this.audioContext?.state ?? "none",
+      workletLoaded: this.workletLoaded,
+      graphRefreshQueued: this.graphRefreshQueued,
+      graphRefreshInFlight: Boolean(this.graphRefreshPromise),
+      graphRefreshRequestedAgain: this.graphRefreshRequestedAgain,
+      graphRefreshForceRequested: this.graphRefreshForceRequested,
+      activeVideo: describeVideo(this.activeVideo),
+      currentVideo: describeVideo(this.currentVideo),
+      currentVideoMatchesActive: Boolean(this.activeVideo && this.currentVideo === this.activeVideo),
+      hasMediaSourceNode: Boolean(this.mediaSourceNode),
+      hasWorkletNode: Boolean(this.workletNode),
+      workletId: this.workletNode?.__videoPitchTunerId ?? null,
+      connectedWorkletIds: Array.from(this.connectedWorkletIds),
+      knownVideos: Array.from(this.knownVideos).map((video) => describeVideo(video)),
+      recentEvents: this.debugEvents.slice(-20)
+    };
+  }
+
+  async debugForceRebuild() {
+    await this.ensureAudioGraph({ force: true });
+    return this.debugSnapshot();
   }
 
   statusResponse(status, reason = "") {
@@ -404,7 +530,52 @@ function clampSemitones(value) {
   return Math.max(-12, Math.min(12, Math.round(numeric)));
 }
 
+function readDebugFlag() {
+  try {
+    return localStorage.getItem("videoPitchTunerDebug") === "1";
+  } catch (error) {
+    return false;
+  }
+}
+
+function createDebugId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function describeVideo(video) {
+  if (!video) {
+    return null;
+  }
+
+  return {
+    id: video.id || "",
+    className: String(video.className || "").slice(0, 120),
+    currentSrc: video.currentSrc || video.src || "",
+    paused: video.paused,
+    ended: video.ended,
+    readyState: video.readyState,
+    currentTime: Number(video.currentTime.toFixed(3)),
+    duration: Number.isFinite(video.duration) ? Number(video.duration.toFixed(3)) : null,
+    muted: video.muted,
+    volume: video.volume,
+    playbackRate: video.playbackRate,
+    isConnected: video.isConnected,
+    size: `${video.videoWidth}x${video.videoHeight}`
+  };
+}
+
 const controller = new VideoPitchController();
+
+globalThis.__videoPitchTunerDebug = {
+  snapshot: () => controller.debugSnapshot(),
+  events: () => controller.debugEvents.slice(),
+  enable: (enabled = true) => {
+    controller.debugEnabled = Boolean(enabled);
+    controller.debugLog("debug-toggle", { enabled: controller.debugEnabled });
+    return controller.debugSnapshot();
+  },
+  rebuild: () => controller.debugForceRebuild()
+};
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message?.type) {
