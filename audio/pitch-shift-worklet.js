@@ -1,7 +1,7 @@
 const WINDOW_SECONDS = 0.1;
 const MIN_DELAY_SECONDS = 0.05;
 const BUFFER_SECONDS = 0.8;
-const SHIFT_GAIN_DB = 3;
+const SHIFT_GAIN_DB = 4;
 const SHIFT_GAIN = Math.pow(10, SHIFT_GAIN_DB / 20);
 const RATIO_EPSILON = 0.0001;
 

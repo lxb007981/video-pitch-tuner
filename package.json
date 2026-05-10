@@ -1,0 +1,14 @@
+{
+  "name": "video-pitch-tuner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:debug": "node scripts/build.mjs --debug",
+    "package": "npm run build && powershell -NoProfile -Command \"Compress-Archive -Path dist\\* -DestinationPath package.zip -Force\""
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}

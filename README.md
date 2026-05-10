@@ -2,16 +2,25 @@
 
 A Microsoft Edge extension that changes the pitch of the active page video without changing playback speed.
 
-The extension ships as plain Manifest V3 files, so you can load it directly in Edge with no build step.
-
 ![preview.png](preview.png)
+
+## Build
+
+1. Run `npm install`.
+2. Run `npm run build`.
+
+The built extension is written to `dist/`.
 
 ## Load in Edge
 
 1. Open `edge://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
-4. Select this repository folder.
+4. Select the `dist/` folder.
+
+## Package
+
+Run `npm run package` to create `package.zip` from the production build.
 
 ## Use
 
@@ -36,7 +45,7 @@ The extension ships as plain Manifest V3 files, so you can load it directly in E
 
 ## Debug audio graph issues
 
-The content script exposes an opt-in diagnostic helper in the page DevTools console.
+Diagnostics are only included in debug builds. Run `npm run build:debug`, load `dist/`, then use the helper from the page DevTools console.
 
 1. Open DevTools on the video page and select the extension/content-script execution context.
 2. Run `__videoPitchTunerDebug.enable()`.
